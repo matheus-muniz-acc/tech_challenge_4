@@ -38,16 +38,6 @@ ENV/
 .mediapipe/
 .deepface/
 
-# Video files (usually large)
-*.mp4
-*.avi
-*.mov
-*.mkv
-*.flv
-*.wmv
-*.webm
-videos/
-
 # Generated reports
 *.json
 analysis_report_*.json
