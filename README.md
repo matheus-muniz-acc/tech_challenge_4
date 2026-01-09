@@ -1,12 +1,13 @@
 # Video Analysis System
 
-A real-time computer vision system for analyzing videos with face detection, emotion analysis, action detection, and anomaly detection. Built with GPU acceleration for optimal performance.
+A real-time computer vision system for analyzing videos with face detection, emotion analysis, **multi-person** action detection, and anomaly detection. Built with GPU acceleration for optimal performance.
 
 ## Features
 
 - **Face Detection**: MediaPipe-based face detection with landmark extraction
 - **Emotion Analysis**: Real-time facial emotion recognition (happy, sad, angry, fear, surprise, disgust, neutral)
-- **Action Detection**: Detects handshakes, standing, sitting, and hand waving gestures
+- **Multi-Person Pose Detection**: YOLOv8-Pose for detecting multiple people simultaneously
+- **Action Detection**: Detects handshakes, standing, sitting, and hand waving gestures (per person)
 - **Anomaly Detection**: Identifies jarring movements, rapid emotion changes, and detection discontinuities
 - **Real-time Visualization**: Live overlay of detections with summary panel
 - **Report Generation**: JSON reports with time-range consolidated observations
@@ -46,7 +47,7 @@ A real-time computer vision system for analyzing videos with face detection, emo
 ### Basic Usage
 
 ```bash
-python main.py video.mp4
+python main.py videos\unlocking_facial_recognition.mp4
 ```
 
 ### Command Line Options
@@ -65,16 +66,16 @@ python main.py video.mp4
 
 ```bash
 # Higher confidence threshold
-python main.py video.mp4 --confidence 0.7
+python main.py videos\unlocking_facial_recognition.mp4 --confidence 0.7
 
 # More sensitive anomaly detection
-python main.py video.mp4 --sensitivity 0.8
+python main.py videos\unlocking_facial_recognition.mp4 --sensitivity 0.8
 
 # Faster processing (skip more frames)
-python main.py video.mp4 --skip-frames 4
+python main.py videos\unlocking_facial_recognition.mp4 --skip-frames 4
 
 # Custom report output
-python main.py video.mp4 --output my_analysis.json
+python main.py videos\unlocking_facial_recognition.mp4 --output my_analysis.json
 ```
 
 ### Keyboard Controls (During Analysis)
@@ -91,7 +92,7 @@ The system generates a JSON report with the following structure:
 {
   "metadata": {
     "generated_at": "2024-01-01T12:00:00",
-    "video_path": "video.mp4",
+    "video_path": "videos\\unlocking_facial_recognition.mp4",
     "video_duration_seconds": 120.5,
     "total_frames": 3615,
     "fps": 30.0

@@ -16,18 +16,28 @@ from config import AnalysisConfig
 class Visualizer:
     """Handles real-time visualization of analysis results."""
     
-    # Pose connections for drawing skeleton
+    # Pose connections for drawing skeleton (YOLO COCO 17 keypoints)
     POSE_CONNECTIONS = [
+        # Head
+        (PoseLandmark.NOSE, PoseLandmark.LEFT_EYE),
+        (PoseLandmark.NOSE, PoseLandmark.RIGHT_EYE),
+        (PoseLandmark.LEFT_EYE, PoseLandmark.LEFT_EAR),
+        (PoseLandmark.RIGHT_EYE, PoseLandmark.RIGHT_EAR),
+        # Torso
         (PoseLandmark.LEFT_SHOULDER, PoseLandmark.RIGHT_SHOULDER),
-        (PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_ELBOW),
-        (PoseLandmark.LEFT_ELBOW, PoseLandmark.LEFT_WRIST),
-        (PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_ELBOW),
-        (PoseLandmark.RIGHT_ELBOW, PoseLandmark.RIGHT_WRIST),
         (PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_HIP),
         (PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_HIP),
         (PoseLandmark.LEFT_HIP, PoseLandmark.RIGHT_HIP),
+        # Left arm
+        (PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_ELBOW),
+        (PoseLandmark.LEFT_ELBOW, PoseLandmark.LEFT_WRIST),
+        # Right arm
+        (PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_ELBOW),
+        (PoseLandmark.RIGHT_ELBOW, PoseLandmark.RIGHT_WRIST),
+        # Left leg
         (PoseLandmark.LEFT_HIP, PoseLandmark.LEFT_KNEE),
         (PoseLandmark.LEFT_KNEE, PoseLandmark.LEFT_ANKLE),
+        # Right leg
         (PoseLandmark.RIGHT_HIP, PoseLandmark.RIGHT_KNEE),
         (PoseLandmark.RIGHT_KNEE, PoseLandmark.RIGHT_ANKLE),
     ]

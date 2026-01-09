@@ -1,4 +1,4 @@
-"""Pose estimation using MediaPipe Pose."""
+"""Pose estimation using YOLOv8-Pose for multi-person detection."""
 
 import cv2
 import numpy as np
@@ -7,48 +7,32 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 try:
-    import mediapipe as mp
-    MEDIAPIPE_AVAILABLE = True
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
 except ImportError:
-    MEDIAPIPE_AVAILABLE = False
-    print("Warning: MediaPipe not available. Please install: pip install mediapipe==0.10.9")
+    YOLO_AVAILABLE = False
+    print("Warning: Ultralytics not available. Please install: pip install ultralytics")
 
 
 class PoseLandmark(IntEnum):
-    """MediaPipe pose landmark indices."""
+    """YOLOv8 pose keypoint indices (COCO format - 17 keypoints)."""
     NOSE = 0
-    LEFT_EYE_INNER = 1
-    LEFT_EYE = 2
-    LEFT_EYE_OUTER = 3
-    RIGHT_EYE_INNER = 4
-    RIGHT_EYE = 5
-    RIGHT_EYE_OUTER = 6
-    LEFT_EAR = 7
-    RIGHT_EAR = 8
-    MOUTH_LEFT = 9
-    MOUTH_RIGHT = 10
-    LEFT_SHOULDER = 11
-    RIGHT_SHOULDER = 12
-    LEFT_ELBOW = 13
-    RIGHT_ELBOW = 14
-    LEFT_WRIST = 15
-    RIGHT_WRIST = 16
-    LEFT_PINKY = 17
-    RIGHT_PINKY = 18
-    LEFT_INDEX = 19
-    RIGHT_INDEX = 20
-    LEFT_THUMB = 21
-    RIGHT_THUMB = 22
-    LEFT_HIP = 23
-    RIGHT_HIP = 24
-    LEFT_KNEE = 25
-    RIGHT_KNEE = 26
-    LEFT_ANKLE = 27
-    RIGHT_ANKLE = 28
-    LEFT_HEEL = 29
-    RIGHT_HEEL = 30
-    LEFT_FOOT_INDEX = 31
-    RIGHT_FOOT_INDEX = 32
+    LEFT_EYE = 1
+    RIGHT_EYE = 2
+    LEFT_EAR = 3
+    RIGHT_EAR = 4
+    LEFT_SHOULDER = 5
+    RIGHT_SHOULDER = 6
+    LEFT_ELBOW = 7
+    RIGHT_ELBOW = 8
+    LEFT_WRIST = 9
+    RIGHT_WRIST = 10
+    LEFT_HIP = 11
+    RIGHT_HIP = 12
+    LEFT_KNEE = 13
+    RIGHT_KNEE = 14
+    LEFT_ANKLE = 15
+    RIGHT_ANKLE = 16
 
 
 @dataclass
@@ -71,7 +55,14 @@ class PoseResult:
 
 
 class PoseEstimator:
-    """Pose estimation using MediaPipe Pose (GPU accelerated)."""
+    """Multi-person pose estimation using YOLOv8-Pose (GPU accelerated)."""
+    
+    # Model options: yolov8n-pose (fastest), yolov8s-pose, yolov8m-pose, yolov8l-pose, yolov8x-pose (most accurate)
+    MODEL_OPTIONS = {
+        0: 'yolov8n-pose.pt',  # Nano - fastest
+        1: 'yolov8s-pose.pt',  # Small - balanced
+        2: 'yolov8m-pose.pt',  # Medium - more accurate
+    }
     
     def __init__(self, min_confidence: float = 0.6, model_complexity: int = 1):
         """
@@ -79,71 +70,120 @@ class PoseEstimator:
         
         Args:
             min_confidence: Minimum detection confidence
-            model_complexity: 0=Lite, 1=Full, 2=Heavy (accuracy vs speed)
+            model_complexity: 0=Nano (fast), 1=Small (balanced), 2=Medium (accurate)
         """
-        if not MEDIAPIPE_AVAILABLE:
+        if not YOLO_AVAILABLE:
             raise ImportError(
-                "MediaPipe is required but not installed. "
-                "Please install it: pip install mediapipe==0.10.9"
+                "Ultralytics is required but not installed. "
+                "Please install it: pip install ultralytics"
             )
         
         self.min_confidence = min_confidence
         
-        try:
-            self.mp_pose = mp.solutions.pose
-        except AttributeError as e:
-            raise ImportError(
-                f"MediaPipe installation is incomplete or corrupted. "
-                f"Please reinstall: pip uninstall mediapipe && pip install mediapipe==0.10.9\n"
-                f"Error: {e}"
-            )
+        # Select model based on complexity
+        model_name = self.MODEL_OPTIONS.get(model_complexity, 'yolov8s-pose.pt')
         
-        # Initialize pose estimator
-        # model_complexity: 0, 1, or 2 (higher = more accurate but slower)
-        self.pose = self.mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=model_complexity,
-            smooth_landmarks=True,
-            enable_segmentation=False,
-            smooth_segmentation=False,
-            min_detection_confidence=min_confidence,
-            min_tracking_confidence=0.5
-        )
+        # Initialize YOLO pose model (downloads automatically on first use)
+        print(f"Loading YOLOv8 Pose model: {model_name}")
+        self.model = YOLO(model_name)
+        
+        # Try GPU first, fall back to CPU if CUDA fails
+        self.device = self._select_device()
+        
+    def _select_device(self) -> str:
+        """Select best available device, with CUDA fallback to CPU."""
+        try:
+            import torch
+            import torch.nn as nn
+            
+            if torch.cuda.is_available():
+                # Test if CUDA actually works with a convolution operation (like YOLO uses)
+                try:
+                    # Create a small conv2d operation to test if kernels are available
+                    test_conv = nn.Conv2d(3, 8, 3, padding=1).cuda()
+                    test_input = torch.randn(1, 3, 32, 32).cuda()
+                    with torch.no_grad():
+                        _ = test_conv(test_input)
+                    
+                    del test_conv, test_input
+                    torch.cuda.empty_cache()
+                    
+                    print("✓ YOLOv8 Pose using device: cuda")
+                    return 'cuda'
+                    
+                except RuntimeError as e:
+                    error_msg = str(e)
+                    if 'no kernel image is available' in error_msg:
+                        print("\n" + "="*70)
+                        print("⚠ GPU NOT COMPATIBLE")
+                        print("="*70)
+                        print(f"Your RTX 5070 TI is too new for PyTorch {torch.__version__}")
+                        print("Falling back to CPU for pose estimation (will be slower)")
+                        print("\nTo enable GPU support:")
+                        print("1. Uninstall current PyTorch:")
+                        print("   pip uninstall torch torchvision -y")
+                        print("2. Install PyTorch nightly with CUDA 12.4:")
+                        print("   pip install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu124")
+                        print("="*70 + "\n")
+                    else:
+                        print(f"CUDA test failed: {e}")
+                        print("Falling back to CPU for pose estimation")
+                    return 'cpu'
+            else:
+                print("CUDA not available, using CPU for pose estimation")
+                return 'cpu'
+        except ImportError:
+            print("PyTorch not found, using CPU")
+            return 'cpu'
         
     def estimate(self, frame: np.ndarray) -> List[PoseResult]:
         """
-        Estimate poses in frame.
+        Estimate poses in frame (supports multiple people).
         
         Args:
             frame: BGR image
             
         Returns:
-            List of PoseResult objects (MediaPipe only detects one person)
+            List of PoseResult objects (one per detected person)
         """
         results = []
         h, w = frame.shape[:2]
         
-        # Convert BGR to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Run YOLO pose detection
+        detections = self.model(
+            frame,
+            conf=self.min_confidence,
+            device=self.device,
+            verbose=False
+        )
         
-        # Process frame
-        pose_results = self.pose.process(rgb_frame)
-        
-        if pose_results.pose_landmarks:
-            landmarks = {}
-            for idx, lm in enumerate(pose_results.pose_landmarks.landmark):
-                landmarks[idx] = (lm.x, lm.y, lm.visibility)
+        # Process each detection
+        for detection in detections:
+            if detection.keypoints is None:
+                continue
+                
+            # Get keypoints data: shape (num_persons, 17, 3) where 3 = (x, y, confidence)
+            keypoints_data = detection.keypoints.data.cpu().numpy()
             
-            world_landmarks = None
-            if pose_results.pose_world_landmarks:
-                world_landmarks = {}
-                for idx, lm in enumerate(pose_results.pose_world_landmarks.landmark):
-                    world_landmarks[idx] = (lm.x, lm.y, lm.z)
-            
-            results.append(PoseResult(
-                landmarks=landmarks,
-                world_landmarks=world_landmarks
-            ))
+            for person_kpts in keypoints_data:
+                landmarks = {}
+                
+                for idx, kpt in enumerate(person_kpts):
+                    x, y, conf = kpt
+                    
+                    # Normalize coordinates to 0-1 range (same as MediaPipe format)
+                    x_norm = x / w
+                    y_norm = y / h
+                    
+                    # Store as (x_normalized, y_normalized, confidence)
+                    landmarks[idx] = (float(x_norm), float(y_norm), float(conf))
+                
+                # Only add if we have valid keypoints
+                if landmarks and any(lm[2] > self.min_confidence for lm in landmarks.values()):
+                    results.append(PoseResult(
+                        landmarks=landmarks,
+                        world_landmarks=None  # YOLO doesn't provide world coordinates
+                    ))
         
         return results
     
@@ -210,4 +250,5 @@ class PoseEstimator:
     
     def release(self):
         """Release resources."""
-        self.pose.close()
+        # YOLO models don't require explicit cleanup
+        pass
