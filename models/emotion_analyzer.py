@@ -164,26 +164,3 @@ class EmotionAnalyzer:
             pass
             
         return None
-    
-    def analyze_single_face(self, face_image: np.ndarray) -> Optional[EmotionResult]:
-        """
-        Analyze emotion for a single face image.
-        
-        Args:
-            face_image: Cropped face BGR image
-            
-        Returns:
-            EmotionResult or None
-        """
-        emotions = self._analyze_face_image(face_image)
-        if emotions:
-            dominant = max(emotions, key=emotions.get)
-            confidence = emotions[dominant] / 100.0
-            normalized = {k: v / 100.0 for k, v in emotions.items()}
-            return EmotionResult(
-                dominant_emotion=dominant,
-                confidence=confidence,
-                all_emotions=normalized,
-                bbox=(0, 0, face_image.shape[1], face_image.shape[0])
-            )
-        return None

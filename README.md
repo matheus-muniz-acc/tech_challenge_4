@@ -14,7 +14,7 @@ A real-time computer vision system for analyzing videos with face detection, emo
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.11.9
 - NVIDIA GPU with CUDA support (RTX series recommended)
 - Windows/Linux/macOS
 
